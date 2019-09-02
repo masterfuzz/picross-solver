@@ -34,6 +34,108 @@ def brute_gen(size):
         inc(v)
         yield tuple(v)
 
+from enum import Enum
+class DotState(Enum):
+    NO = 0
+    YES = 1
+    MAYBE = 2
+    UNCHECKED = 3
+
+    def __add__(self, state):
+        if self == self.UNCHECKED:
+            return state
+        if self == self.MAYBE:
+            return self
+        if self == state:
+            return self
+        return self.MAYBE
+    
+    def __repr__(self):
+        if self == self.YES:
+            return "1"
+        if self == self.NO:
+            return "0"
+        return "?"
+
+    def is_certain(self):
+        return self == self.YES or self == self.NO
+       
+
+class PicrossRow:
+    def __init__(self, pat, size):
+        self.pat = pat
+        self.size = size
+        self._vals = [[DotState.UNCHECKED for _ in range(size)]]
+        self._sum_vals = None
+
+    def __getitem__(self, i):
+        return self.sum_vals[i]
+
+    @property
+    def sum_vals(self):
+        if self._sum_vals is None:
+            self._vals = list(self.gen())
+            self._sum_vals = self._dsum(self._vals)
+        return self._sum_vals
+
+    def _dsum(self, lst):
+        if len(lst) == 0:
+            return [DotState.UNCHECKED] * self.size
+        elif len(lst) == 1:
+            return lst[0]
+        else:
+            return self._dadd(lst[0], self._dsum(lst[1:]))
+
+    @property
+    def solved(self):
+        return all(p.is_certain() for p in self.sum_vals)
+
+    def __setitem__(self, i, value):
+        if self[i].is_certain():
+            raise ValueError("Attempted to set an already certain value")
+        new_vals = [
+            v for v in self._vals if v[i] == value
+        ]
+        if new_vals:
+            self._vals = new_vals
+            self._sum_vals = self._dsum(self._vals)
+        else:
+            raise ValueError("That value at that position is impossible")
+
+    @staticmethod
+    def _dadd(a, b):
+        if len(a) != len(b):
+            raise ValueError("Must be same length")
+        else:
+            return [a[i] + b[i] for i in range(len(a))]
+
+    def _pos(self, pat, free):
+        if len(pat) == 0:
+            yield [DotState.NO] * free
+            return
+
+        p0 = [DotState.YES] * pat[0]
+        if len(pat) == 1:
+            if free:
+                for n in range(free+1):
+                    yield [DotState.NO] * n + p0 + [DotState.NO] * (free-n)
+            else:
+                yield p0
+        else:
+            if free:
+                for n in range(free + 1):
+                    for tail in self._pos(pat[1:], free - n):
+                        yield [DotState.NO] * n + p0 + [DotState.NO] + tail
+            else:
+                for tail in self._pos(pat[1:], free):
+                    yield p0 + [DotState.NO] + tail
+
+    def gen(self):
+        free = self.size - sum(self.pat) - (len(self.pat)-1)
+        yield from self._pos(self.pat, free)
+
+
+
 
 class Matrix:
     def __init__(self, rows=None, size=0):
