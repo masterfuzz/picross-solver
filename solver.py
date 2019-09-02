@@ -82,18 +82,20 @@ class PicrossRow:
     @property
     def sum_vals(self):
         if self._vals is None:
+            print("generating...")
             self._vals = list(self.gen())
         if self._sum_vals is None:
             self._sum_vals = self._dsum(self._vals)
         return self._sum_vals
 
     def _dsum(self, lst):
-        if len(lst) == 0:
-            return [DotState.UNCHECKED] * self.size
-        elif len(lst) == 1:
-            return lst[0]
-        else:
-            return self._dadd(lst[0], self._dsum(lst[1:]))
+        return reduce(self._dadd, lst, [DotState.UNCHECKED] * self.size)
+        # if len(lst) == 0:
+        #     return [DotState.UNCHECKED] * self.size
+        # elif len(lst) == 1:
+        #     return lst[0]
+        # else:
+        #     return self._dadd(lst[0], self._dsum(lst[1:]))
 
     def __repr__(self):
         return repr(self.sum_vals)
@@ -163,8 +165,10 @@ class Picross:
         self.cols = [PicrossRow(col, n_rows) for col in column_patterns]
 
     def row_prune(self):
+        print("row pruning...")
         changes = 0
         for i, c in enumerate(self.cols):
+            print(f"pruning rows with column {i}")
             for j, r in enumerate(self.rows):
                 if c[j].is_certain():
                     changes += r.set_certain(i, c[j])
@@ -172,7 +176,9 @@ class Picross:
 
     def col_prune(self):
         changes = 0
+        print("column pruning...")
         for j, r in enumerate(self.rows):
+            print(f"pruning columns with row {j}")
             for i, c in enumerate(self.cols):
                 if r[i].is_certain():
                     changes += c.set_certain(j, r[i])
@@ -190,11 +196,16 @@ class Picross:
         tries = 0
         while True:
             tries += 1
+            print(f"Try #{tries}...")
             if max_tries and tries > max_tries:
+                print("And that's the max. We're done")
                 break
             changes = self.row_prune()
+            print(f"found {changes} changes")
             changes += self.col_prune()
+            print(f"found {changes} total changes")
             if not changes:
+                print("No changes, we're done")
                 break
         return (tries, self.certain())
 
@@ -448,10 +459,19 @@ test_picross = Matrix([
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [0, 0, 0, 1, 1, 1, 1, 0, 0, 0]
 ])
+from random import randint
+test_picross_lorge = Matrix([
+    [randint(0,1) for _ in range(30)]
+    for _ in range(30)
+]
+)
 rows, cols = test_picross.to_picross()
 p = Picross(rows, cols)
+p2 = Picross(*test_picross_lorge.to_picross())
 
 # if __name__ == "__main__":
 #     s = find_sol(rows, cols)
 #     print(s)
     # rs = r.column_prune(c)
+
+print(p2.solve())
