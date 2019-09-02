@@ -65,16 +65,25 @@ class PicrossRow:
     def __init__(self, pat, size):
         self.pat = pat
         self.size = size
-        self._vals = [[DotState.UNCHECKED for _ in range(size)]]
+        self._vals = None
         self._sum_vals = None
 
     def __getitem__(self, i):
         return self.sum_vals[i]
 
+    def get_values(self):
+        if self._vals is None:
+            self._vals = list(self.gen())
+        return [
+            list(map(lambda ds: ds.value, val))
+            for val in self._vals
+        ]
+
     @property
     def sum_vals(self):
-        if self._sum_vals is None:
+        if self._vals is None:
             self._vals = list(self.gen())
+        if self._sum_vals is None:
             self._sum_vals = self._dsum(self._vals)
         return self._sum_vals
 
@@ -86,21 +95,31 @@ class PicrossRow:
         else:
             return self._dadd(lst[0], self._dsum(lst[1:]))
 
-    @property
-    def solved(self):
+    def __repr__(self):
+        return repr(self.sum_vals)
+
+    def is_certain(self):
         return all(p.is_certain() for p in self.sum_vals)
 
-    def __setitem__(self, i, value):
+    def set_certain(self, i, value):
         if self[i].is_certain():
-            raise ValueError("Attempted to set an already certain value")
+            if value != self[i]:
+                raise ValueError("Attempted to set an already certain value to something else")
+            else:
+                return 0
         new_vals = [
             v for v in self._vals if v[i] == value
         ]
         if new_vals:
+            changes = len(self._vals) - len(new_vals)
             self._vals = new_vals
-            self._sum_vals = self._dsum(self._vals)
+            self._sum_vals = None #self._dsum(self._vals)
+            return changes
         else:
             raise ValueError("That value at that position is impossible")
+
+    def __setitem__(self, i, value):
+        self._set(i, value)
 
     @staticmethod
     def _dadd(a, b):
@@ -135,6 +154,49 @@ class PicrossRow:
         yield from self._pos(self.pat, free)
 
 
+class Picross:
+    def __init__(self, row_patterns, column_patterns):
+        n_cols = len(column_patterns)
+        n_rows = len(row_patterns)
+
+        self.rows = [PicrossRow(row, n_cols) for row in row_patterns]
+        self.cols = [PicrossRow(col, n_rows) for col in column_patterns]
+
+    def row_prune(self):
+        changes = 0
+        for i, c in enumerate(self.cols):
+            for j, r in enumerate(self.rows):
+                if c[j].is_certain():
+                    changes += r.set_certain(i, c[j])
+        return changes
+
+    def col_prune(self):
+        changes = 0
+        for j, r in enumerate(self.rows):
+            for i, c in enumerate(self.cols):
+                if r[i].is_certain():
+                    changes += c.set_certain(j, r[i])
+        return changes
+
+    def certain(self):
+        return all(row.is_certain() for row in self.rows) or all(col.is_certain() for col in self.cols)
+
+    # def check_solution(self):
+    #     sol_T = sol.transpose()
+    #     return all(check_full(sol[x], rows[x]) for x in range(len(cols))) and \
+    #             all(check_full(sol_T[x], cols[x]) for x in range(len(rows)))
+
+    def solve(self, max_tries=0):
+        tries = 0
+        while True:
+            tries += 1
+            if max_tries and tries > max_tries:
+                break
+            changes = self.row_prune()
+            changes += self.col_prune()
+            if not changes:
+                break
+        return (tries, self.certain())
 
 
 class Matrix:
@@ -384,10 +446,12 @@ test_picross = Matrix([
     [0, 0, 1, 0, 0, 0, 0, 1, 0, 0],
     [0, 0, 0, 1, 1, 1, 1, 0, 0, 0],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [0, 0, 0, 1, 1, 1, 1, 0, 0, 0]
 ])
 rows, cols = test_picross.to_picross()
+p = Picross(rows, cols)
 
-if __name__ == "__main__":
-    s = find_sol(rows, cols)
-    print(s)
+# if __name__ == "__main__":
+#     s = find_sol(rows, cols)
+#     print(s)
     # rs = r.column_prune(c)
