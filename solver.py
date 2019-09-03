@@ -209,6 +209,36 @@ class Picross:
                 break
         return (tries, self.certain())
 
+    def solve_with_guesses(self, max_guesses=100, max_tries=0):
+        guesses = 0
+        total_tries = 0
+        certain = False
+        while True:
+            tries, certain = self.solve()
+            total_tries += tries
+            if certain:
+                break
+            guesses += 1
+            if guesses > max_guesses:
+                print("Hit max guesses")
+                break
+            print(f"making my #{guesses} guess")
+            # find first "MAYBE" and set to a YES
+            def guess_maybe(c):
+                for i, v in enumerate(c.sum_vals):
+                    if v == DotState.MAYBE:
+                        c.set_certain(i, DotState.YES)
+                        return True
+                return False
+            for c in self.cols:
+                if guess_maybe(c):
+                    break
+
+        print(f"Total pruning tries: {total_tries}")
+        print(f"Total guesses: {guesses}")
+        print(f"Did we solve it? " + "YES :D" if certain else "NO :(")
+        return (total_tries, certain, guesses)
+
 
 class Matrix:
     def __init__(self, rows=None, size=0):
@@ -461,8 +491,8 @@ test_picross = Matrix([
 ])
 from random import randint
 test_picross_lorge = Matrix([
-    [randint(0,1) for _ in range(30)]
-    for _ in range(30)
+    [(x+y) % 2 for x in range(50)]
+    for y in range(50)
 ]
 )
 rows, cols = test_picross.to_picross()
@@ -474,4 +504,4 @@ p2 = Picross(*test_picross_lorge.to_picross())
 #     print(s)
     # rs = r.column_prune(c)
 
-print(p2.solve())
+print(p2.solve_with_guesses())
