@@ -52,9 +52,9 @@ class DotState(Enum):
     
     def __repr__(self):
         if self == self.YES:
-            return "1"
+            return "#"
         if self == self.NO:
-            return "0"
+            return " "
         return "?"
 
     def is_certain(self):
@@ -82,7 +82,7 @@ class PicrossRow:
     @property
     def sum_vals(self):
         if self._vals is None:
-            print("generating...")
+            # print("generating...")
             self._vals = list(self.gen())
         if self._sum_vals is None:
             self._sum_vals = self._dsum(self._vals)
@@ -98,7 +98,7 @@ class PicrossRow:
         #     return self._dadd(lst[0], self._dsum(lst[1:]))
 
     def __repr__(self):
-        return repr(self.sum_vals)
+        return "[" + "".join(map(repr, self.sum_vals)) + "]"
 
     def is_certain(self):
         return all(p.is_certain() for p in self.sum_vals)
@@ -155,6 +155,12 @@ class PicrossRow:
         free = self.size - sum(self.pat) - (len(self.pat)-1)
         yield from self._pos(self.pat, free)
 
+    @property
+    def posibilities(self):
+        def _(pat, size):
+            return 1
+        return _(self.pat, self.size)
+
 
 class Picross:
     def __init__(self, row_patterns, column_patterns):
@@ -165,10 +171,10 @@ class Picross:
         self.cols = [PicrossRow(col, n_rows) for col in column_patterns]
 
     def row_prune(self):
-        print("row pruning...")
+        # print("row pruning...")
         changes = 0
         for i, c in enumerate(self.cols):
-            print(f"pruning rows with column {i}")
+            # print(f"pruning rows with column {i}")
             for j, r in enumerate(self.rows):
                 if c[j].is_certain():
                     changes += r.set_certain(i, c[j])
@@ -176,9 +182,9 @@ class Picross:
 
     def col_prune(self):
         changes = 0
-        print("column pruning...")
+        # print("column pruning...")
         for j, r in enumerate(self.rows):
-            print(f"pruning columns with row {j}")
+            # print(f"pruning columns with row {j}")
             for i, c in enumerate(self.cols):
                 if r[i].is_certain():
                     changes += c.set_certain(j, r[i])
@@ -195,15 +201,16 @@ class Picross:
     def solve(self, max_tries=0):
         tries = 0
         while True:
+            print(self)
             tries += 1
             print(f"Try #{tries}...")
             if max_tries and tries > max_tries:
                 print("And that's the max. We're done")
                 break
             changes = self.row_prune()
-            print(f"found {changes} changes")
+            # print(f"found {changes} changes")
             changes += self.col_prune()
-            print(f"found {changes} total changes")
+            # print(f"found {changes} total changes")
             if not changes:
                 print("No changes, we're done")
                 break
@@ -237,7 +244,11 @@ class Picross:
         print(f"Total pruning tries: {total_tries}")
         print(f"Total guesses: {guesses}")
         print(f"Did we solve it? " + "YES :D" if certain else "NO :(")
+        print(self)
         return (total_tries, certain, guesses)
+
+    def __str__(self):
+        return "\n".join(map(repr, p3.rows))
 
 
 class Matrix:
@@ -491,17 +502,21 @@ test_picross = Matrix([
 ])
 from random import randint
 test_picross_lorge = Matrix([
-    [(x+y) % 2 for x in range(50)]
-    for y in range(50)
+    [(x+y) % 3 for x in range(30)]
+    for y in range(30)
 ]
 )
 rows, cols = test_picross.to_picross()
 p = Picross(rows, cols)
 p2 = Picross(*test_picross_lorge.to_picross())
+p3 = Picross(
+    [[1,1],[3],[2],[2,1],[2,1],[1,1,1],[2,1],[2,1,1,6],[2,1,1,2,2,2],[2,1,1,2,1],[1,1,2,1],[2,1,1,2,1],[2,1,1,2,1],[2,1,1,1,1],[1,1,2,2,1]],
+    [[1,6,1],[2,4,2],[2,2,1],[8],[2],[2],[5],[3,1],[2,3],[1],[3,2,1],[2,3,3,2,1],[1,1],[2,2,3],[3,1]]
+)
 
 # if __name__ == "__main__":
 #     s = find_sol(rows, cols)
 #     print(s)
     # rs = r.column_prune(c)
 
-print(p2.solve_with_guesses())
+# print(p3.solve_with_guesses())
